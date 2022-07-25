@@ -904,23 +904,22 @@ class SolidityLSPTestSuite: # {{{
         lsp: JsonRpcProcess,
         expose_project_root=True,
         analyze_all_files_in_project=False,
-        project_root_suffix = None
+        project_root_subdir=None
     ):
         """
         Prepares the solc LSP server by calling `initialize`,
         and `initialized` methods.
         """
-        rootUri = self.project_root_uri
-        if project_root_suffix is not None:
-            rootUri = rootUri + '/' + project_root_suffix
+        root_uri = self.project_root_uri
+        if project_root_subdir is not None:
+            root_uri = root_uri + '/' + project_root_subdir
         params = {
             'processId': None,
-            'rootUri': rootUri,
+            'rootUri': root_uri,
             # Enable traces to receive the amount of expected diagnostics before
             # actually receiving them.
             'trace': 'messages',
             'initializationOptions': {
-                'analyze-all-files-in-project': analyze_all_files_in_project,
             },
             'capabilities': {
                 'textDocument': {
@@ -935,6 +934,8 @@ class SolidityLSPTestSuite: # {{{
                 }
             }
         }
+        if analyze_all_files_in_project is not None:
+            params['initializationOptions']['analyze-all-files-in-project'] = analyze_all_files_in_project
         if not expose_project_root:
             params['rootUri'] = None
         lsp.call_method('initialize', params)
@@ -1321,7 +1322,7 @@ class SolidityLSPTestSuite: # {{{
         self.setup_lsp(
             solc,
             analyze_all_files_in_project=True,
-            project_root_suffix=SUBDIR
+            project_root_subdir=SUBDIR
         )
         published_diagnostics = self.wait_for_diagnostics(solc)
         pprint(published_diagnostics)

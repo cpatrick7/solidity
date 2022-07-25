@@ -152,10 +152,19 @@ void LanguageServer::changeConfiguration(Json::Value const& _settings)
 {
 	try
 	{
+		// The settings item: "analyze-all-files-in-project" (bool) defaults to true if not (or not correctly) set.
+		// It can be overridden during client's handshake or at runtime, as usual.
+		//
+		// If this value is set to true (default), all .sol files within the project root will be subject to operations.
+		//
+		// Operations include compiler analysis, but also finding all symbolic references or symbolic renaming.
+		//
+		// If this value is set to false, then only currently directly opened files and those files being
+		// imported directly or indirectly will be included in operations.
 		if (_settings["analyze-all-files-in-project"])
 			m_analyzeAllFilesFromProject = _settings["analyze-all-files-in-project"].asBool();
 	}
-	catch (...)
+	catch (Json::LogicError const&)
 	{
 		throw RequestError{ErrorCode::InvalidParams};
 	}
@@ -188,14 +197,22 @@ void LanguageServer::changeConfiguration(Json::Value const& _settings)
 
 vector<boost::filesystem::path> LanguageServer::allSolidityFilesFromProject() const
 {
-	// Don't iterate through all .sol files recursively when project root is system root.
-	if (m_fileRepository.basePath() == "/")
-		return {};
+	namespace fs = boost::filesystem;
 
-	return util::findFilesRecursively(
-		m_fileRepository.basePath(),
-		[&](boost::filesystem::path const& p) { return p.extension() == ".sol"; }
-	);
+	std::vector<fs::path> collectedPaths{};
+
+	auto iterator = fs::recursive_directory_iterator(m_fileRepository.basePath(), fs::symlink_option::recurse);
+	auto const iteratorEnd = fs::recursive_directory_iterator();
+
+	while (iterator != iteratorEnd)
+	{
+		if (iterator->path().extension() == ".sol")
+			collectedPaths.push_back(iterator->path());
+
+		++iterator;
+	}
+
+	return collectedPaths;
 }
 
 void LanguageServer::compile()
@@ -217,7 +234,7 @@ void LanguageServer::compile()
 			);
 		}
 
-	// Overwrite all files as opened by the client and might potentially have changes.
+	// Overwrite all files as opened by the client, including the ones which might potentially have changes.
 	for (string const& fileName: m_openFiles)
 		m_fileRepository.setSourceByUri(
 			fileName,
