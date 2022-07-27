@@ -16,7 +16,6 @@ from enum import Enum, auto
 from itertools import islice
 from pathlib import PurePath
 from typing import Any, List, Optional, Tuple, Union, NewType
-from pprint import pprint
 
 import colorama  # Enables the use of SGR & CUP terminal VT sequences on Windows.
 from deepdiff import DeepDiff
@@ -910,12 +909,12 @@ class SolidityLSPTestSuite: # {{{
         Prepares the solc LSP server by calling `initialize`,
         and `initialized` methods.
         """
-        root_uri = self.project_root_uri
+        project_root_dir_uri_with_maybe_subdir = self.project_root_uri
         if project_root_subdir is not None:
-            root_uri = root_uri + '/' + project_root_subdir
+            project_root_dir_uri_with_maybe_subdir = self.project_root_uri + '/' + project_root_subdir
         params = {
             'processId': None,
-            'rootUri': root_uri,
+            'rootUri': project_root_dir_uri_with_maybe_subdir,
             # Enable traces to receive the amount of expected diagnostics before
             # actually receiving them.
             'trace': 'messages',
@@ -935,7 +934,7 @@ class SolidityLSPTestSuite: # {{{
             }
         }
         if analyze_all_files_in_project is not None:
-            params['initializationOptions']['analyze-all-files-in-project'] = analyze_all_files_in_project
+            params['initializationOptions']['file-load-strategy'] = "project-directory" if analyze_all_files_in_project else "directly-opened-and-on-import"
         if not expose_project_root:
             params['rootUri'] = None
         lsp.call_method('initialize', params)
@@ -1312,7 +1311,7 @@ class SolidityLSPTestSuite: # {{{
     def test_analyze_all_project_files(self, solc: JsonRpcProcess) -> None:
         """
         Tests the option (default) to analyze all .sol project files even when they have not been actively
-        opened yet. This is how other LSP's (at least for C++) work too and it makes cross-unit tasks
+        opened yet. This is how other LSPs (at least for C++) work too and it makes cross-unit tasks
         actually correct (e.g. symbolic rename, find all references, ...).
 
         In this test, we simply open up a custom project and ensure we're receiving the diagnostics
@@ -1325,7 +1324,6 @@ class SolidityLSPTestSuite: # {{{
             project_root_subdir=SUBDIR
         )
         published_diagnostics = self.wait_for_diagnostics(solc)
-        pprint(published_diagnostics)
         self.expect_equal(len(published_diagnostics), 3, "Diagnostic reports for 3 files")
 
         # C.sol

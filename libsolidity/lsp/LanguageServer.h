@@ -37,6 +37,22 @@ class RenameSymbol;
 enum class ErrorCode;
 
 /**
+ * Enum to mandate what files to take into consideration for source code analysis.
+ */
+enum class FileLoadStrategy
+{
+	/// Takes only those files into consideration that are explicitly opened and those
+	/// that have been directly or indirectly imported.
+	DirectlyOpenedAndOnImported = 0,
+
+	/// Takes all Solidity (.sol) files within the project root into account.
+	/// Symbolic links will be followed, regardless of their destination (no root escalation checks).
+	///
+	/// This resembles the closest what other LSPs should be doing already.
+	ProjectDirectory = 1,
+};
+
+/**
  * Solidity Language Server, managing one LSP client.
  * This implements a subset of LSP version 3.16 that can be found at:
  * https://microsoft.github.io/language-server-protocol/specifications/specification-3-16/
@@ -104,7 +120,7 @@ private:
 	/// Set of source unit names for which we sent diagnostics to the client in the last iteration.
 	std::set<std::string> m_nonemptyDiagnostics;
 	FileRepository m_fileRepository;
-	bool m_analyzeAllFilesFromProject = true;
+	FileLoadStrategy m_fileLoadStrategy = FileLoadStrategy::ProjectDirectory;
 
 	frontend::CompilerStack m_compilerStack;
 
