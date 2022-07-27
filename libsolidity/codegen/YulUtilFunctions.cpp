@@ -80,20 +80,35 @@ string YulUtilFunctions::splitExternalFunctionIdFunction()
 	});
 }
 
-string YulUtilFunctions::copyToMemoryFunction(bool _fromCalldata)
+string YulUtilFunctions::copyToMemoryFunction(bool _fromCalldata, bool _cleanup)
 {
-	string functionName = "copy_" + string(_fromCalldata ? "calldata" : "memory") + "_to_memory";
+	string functionName =
+		"copy_" +
+		string(_fromCalldata ? "calldata" : "memory") +
+		"_to_memory" +
+		string(_cleanup ? "_cleanup" : "");
+
 	return m_functionCollector.createFunction(functionName, [&]() {
 		if (_fromCalldata)
 		{
 			return Whiskers(R"(
 				function <functionName>(src, dst, length) {
 					calldatacopy(dst, src, length)
-					// clear end
-					mstore(add(dst, length), 0)
+					<?cleanup>
+					// clear up to 32 byte boundary
+					let endPos := add(dst, length)
+					let spill := and(endPos, 0x1F)
+					if spill
+					{
+						let mask := <shl>(not(0), sub(0x20, spill))
+						mstore(endPos, and(mload(endPos), mask))
+					}
+					</cleanup>
 				}
 			)")
 			("functionName", functionName)
+			("shl", shiftLeftFunctionDynamic())
+			("cleanup", _cleanup)
 			.render();
 		}
 		else
@@ -105,14 +120,20 @@ string YulUtilFunctions::copyToMemoryFunction(bool _fromCalldata)
 					{
 						mstore(add(dst, i), mload(add(src, i)))
 					}
+					<?cleanup>
 					if gt(i, length)
 					{
-						// clear end
-						mstore(add(dst, length), 0)
+						// clear up to 32 byte boundary
+						let endPos := add(dst, length)
+						let mask := <shl>(not(0), sub(0x20, and(endPos, 0x1F)))
+						mstore(endPos, and(mload(endPos), mask))
 					}
+					</cleanup>
 				}
 			)")
 			("functionName", functionName)
+			("shl", shiftLeftFunctionDynamic())
+			("cleanup", _cleanup)
 			.render();
 		}
 	});
