@@ -1722,9 +1722,7 @@ bool TypeChecker::visit(UnaryOperation const& _operation)
 	TypeResult result = type(_operation.subExpression())->unaryOperatorResult(op);
 	if (!result)
 	{
-		string description = "Unary operator " + string(TokenTraits::toString(op)) + " cannot be applied to type " + subExprType->humanReadableName();
-		if (!result.message().empty())
-			description += ". " + result.message();
+		string description = "Unary operator " + string(TokenTraits::toString(op)) + " cannot be applied to type " + subExprType->humanReadableName() + (!result.message().empty() ? ". " + result.message() : ".");
 		if (modifying)
 			// Cannot just report the error, ignore the unary operator, and continue,
 			// because the sub-expression was already processed with requireLValue()
@@ -1759,7 +1757,7 @@ void TypeChecker::endVisit(BinaryOperation const& _operation)
 			leftType->humanReadableName() +
 			" and " +
 			rightType->humanReadableName() +
-			(!result.message().empty() ? ". " + result.message() : "")
+			(!result.message().empty() ? ". " + result.message() : ".")
 		);
 		commonType = leftType;
 	}
