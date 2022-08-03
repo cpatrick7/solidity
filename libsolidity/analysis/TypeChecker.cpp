@@ -1600,7 +1600,8 @@ bool TypeChecker::visit(Assignment const& _assignment)
 				" not compatible with types " +
 				t->humanReadableName() +
 				" and " +
-				type(_assignment.rightHandSide())->humanReadableName()
+				type(_assignment.rightHandSide())->humanReadableName() +
+				"."
 			);
 	}
 	return false;
